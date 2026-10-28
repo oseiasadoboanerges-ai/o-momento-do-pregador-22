@@ -338,5 +338,17 @@ document.getElementById('contactForm').addEventListener('submit',e=>{e.preventDe
   });
 })();
  </script>
+<script>
+(function () {
+  const SUPABASE_URL = "https://itwwiqfjhndhzvlzhmqh.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_dK2j7SeevpEK3r2plPiu8w_z__aJTiW";
+
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const caixa = document.createElement("div");
+  caixa.style.cssText = "background:#fff;padding:20px;margin:15px;border-radius:12px;color:#222;";
+  caixa.innerHTML = `
+    <h2>Recuperar palavra-passe</h2>
+    <p>Se abriste esta página através do e-mail de recuperação, escreve uma
 </body>
 </html>
