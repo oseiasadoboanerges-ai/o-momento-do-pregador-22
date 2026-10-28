@@ -338,52 +338,114 @@ document.getElementById('contactForm').addEventListener('submit',e=>{e.preventDe
   });
 })();
  </script>
-</body>
- <script>
+<script>
 (function () {
   const SUPABASE_URL = "https://itwwiqfjhndhzvlzhmqh.supabase.co";
   const SUPABASE_KEY = "sb_publishable_dK2j7SeevpEK3r2plPiu8w_z__aJTiW";
 
-  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  function iniciarRecuperacao() {
+    if (!window.supabase) {
+      console.error("Biblioteca Supabase não carregada.");
+      return;
+    }
 
-  const caixa = document.createElement("div");
-  caixa.style.cssText = "background:#fff;padding:20px;margin:15px;border-radius:12px;color:#222;";
-  caixa.innerHTML = `
-    <h2>Recuperar palavra-passe</h2>
-    <p>Se abriste esta página através do e-mail de recuperação, escreve uma nova palavra-passe.</p>
-    <input id="novaSenhaOMP" type="password" placeholder="Nova palavra-passe" style="display:block;width:100%;padding:12px;margin:10px 0;box-sizing:border-box;">
-    <input id="confirmarSenhaOMP" type="password" placeholder="Confirmar palavra-passe" style="display:block;width:100%;padding:12px;margin:10px 0;box-sizing:border-box;">
-    <button id="alterarSenhaOMP" style="padding:12px;background:#176b45;color:white;border:0;border-radius:6px;">Guardar nova palavra-passe</button>
-    <p id="mensagemSenhaOMP"></p>
-  `;
+    const db = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
 
-  document.body.appendChild(caixa);
+    const caixa = document.createElement("section");
+    caixa.id = "recuperacaoSenhaOMP";
+    caixa.style.cssText =
+      "background:#fff;padding:20px;margin:15px;border-radius:12px;color:#222;border:1px solid #ddd;";
 
-  document.getElementById("alterarSenhaOMP").addEventListener("click", async function () {
-    const senha = document.getElementById("novaSenhaOMP").value;
-    const confirmar = document.getElementById("confirmarSenhaOMP").value;
+    caixa.innerHTML = `
+      <h2>Recuperar palavra-passe</h2>
+      <p>Se abriste esta página através do e-mail de recuperação, define uma nova palavra-passe abaixo.</p>
+
+      <label for="novaSenhaOMP">Nova palavra-passe</label>
+      <input id="novaSenhaOMP" type="password"
+        autocomplete="new-password"
+        placeholder="Pelo menos 6 caracteres"
+        style="display:block;width:100%;padding:12px;margin:8px 0;box-sizing:border-box;">
+
+      <label for="confirmarSenhaOMP">Confirmar palavra-passe</label>
+      <input id="confirmarSenhaOMP" type="password"
+        autocomplete="new-password"
+        placeholder="Escreve novamente a palavra-passe"
+        style="display:block;width:100%;padding:12px;margin:8px 0;box-sizing:border-box;">
+
+      <button id="alterarSenhaOMP"
+        style="padding:12px;background:#176b45;color:white;border:0;border-radius:6px;">
+        Guardar nova palavra-passe
+      </button>
+
+      <p id="mensagemSenhaOMP" role="status" style="overflow-wrap:anywhere;"></p>
+    `;
+
+    document.body.appendChild(caixa);
+
     const mensagem = document.getElementById("mensagemSenhaOMP");
 
-    if (senha.length < 6) {
-      mensagem.textContent = "A palavra-passe deve ter pelo menos 6 caracteres.";
-      return;
+    document.getElementById("alterarSenhaOMP")
+      .addEventListener("click", async function () {
+        const senha = document.getElementById("novaSenhaOMP").value;
+        const confirmar = document.getElementById("confirmarSenhaOMP").value;
+
+        if (senha.length < 6) {
+          mensagem.textContent =
+            "A palavra-passe deve ter pelo menos 6 caracteres.";
+          return;
+        }
+
+        if (senha !== confirmar) {
+          mensagem.textContent =
+            "As palavras-passe não coincidem.";
+          return;
+        }
+
+        mensagem.textContent = "A verificar o acesso de recuperação...";
+
+        try {
+          const { data, error: erroSessao } = await db.auth.getSession();
+
+          if (erroSessao || !data.session) {
+            mensagem.textContent =
+              "O link de recuperação não está activo. Solicita um novo e-mail de recuperação e abre o link mais recente.";
+            return;
+          }
+
+          const { error } = await db.auth.updateUser({
+            password: senha
+          });
+
+          if (error) {
+            mensagem.textContent =
+              "Não foi possível alterar a palavra-passe: " + error.message;
+            return;
+          }
+
+          mensagem.textContent =
+            "Palavra-passe alterada com sucesso! Já podes voltar à Conta do Pregador e iniciar sessão.";
+        } catch (erro) {
+          mensagem.textContent =
+            "Ocorreu um erro. Solicita um novo e-mail de recuperação e tenta novamente.";
+        }
+      });
+
+    const hash = window.location.hash;
+
+    if (hash.includes("type=recovery")) {
+      caixa.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  }
 
-    if (senha !== confirmar) {
-      mensagem.textContent = "As palavras-passe não coincidem.";
-      return;
-    }
-
-    mensagem.textContent = "A alterar a palavra-passe...";
-
-    const { error } = await db.auth.updateUser({ password: senha });
-
-    if (error) {
-      mensagem.textContent = "Erro: " + error.message;
-    } else {
-      mensagem.textContent = "Palavra-passe alterada! Já podes iniciar sessão.";
-    }
-  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", iniciarRecuperacao);
+  } else {
+    iniciarRecuperacao();
+  }
 })();
 </script>
+</body>
 </html>
