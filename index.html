@@ -200,5 +200,143 @@ function renderQuestions(){const arr=JSON.parse(localStorage.getItem('ompQuestio
 document.getElementById('postQuestion').addEventListener('click',()=>{const el=document.getElementById('communityQuestion');const q=el.value.trim();if(!q){showToast('Escreve primeiro uma pergunta.');return}const arr=JSON.parse(localStorage.getItem('ompQuestions')||'[]');arr.unshift(q);localStorage.setItem('ompQuestions',JSON.stringify(arr.slice(0,20)));el.value='';renderQuestions();showToast('Pergunta adicionada localmente. Não foi publicada na Internet.')});renderQuestions();
 document.getElementById('contactForm').addEventListener('submit',e=>{e.preventDefault();const name=document.getElementById('contactName').value.trim();const reason=document.getElementById('contactReason').value;const message=document.getElementById('contactMessage').value.trim();const box=document.getElementById('contactPreview');box.classList.remove('hidden');box.innerHTML=`<div class="result"><strong>Pré-visualização — não enviada</strong><p><b>Nome:</b> ${escapeHTML(name)}</p><p><b>Motivo:</b> ${escapeHTML(reason)}</p><p><b>Mensagem:</b> ${escapeHTML(message)}</p><p class="small">Copia a mensagem se desejares enviá-la por um canal oficial.</p></div>`});
 </script>
+ <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+(function () {
+  const SUPABASE_URL = "https://itwwiqfjhndhzvlzhmqh.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_dK2j7SeevpEK3r2plPiu8w_z__aJTiW";
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  const pagina = document.getElementById("page-profile");
+  if (!pagina) {
+    alert("Não foi possível encontrar a página de perfil.");
+    return;
+  }
+
+  const caixa = document.createElement("div");
+  caixa.style.cssText = "background:#fff;padding:20px;margin:15px 0;border-radius:12px;border:1px solid #ddd;color:#222;";
+  caixa.innerHTML = `
+    <h2>Conta do Pregador</h2>
+    <p>Cria a tua conta ou entra para guardar o teu perfil.</p>
+    <label>Nome completo</label>
+    <input id="ompNome" type="text" placeholder="O teu nome"
+      style="display:block;width:100%;padding:12px;margin:8px 0;box-sizing:border-box;">
+    <label>Correio electrónico</label>
+    <input id="ompEmail" type="email" placeholder="nome@email.com"
+      style="display:block;width:100%;padding:12px;margin:8px 0;box-sizing:border-box;">
+    <label>Palavra-passe (mínimo 6 caracteres)</label>
+    <input id="ompSenha" type="password" placeholder="Cria a tua palavra-passe"
+      style="display:block;width:100%;padding:12px;margin:8px 0;box-sizing:border-box;">
+    <button id="ompRegistar" style="padding:12px;margin:5px;background:#176b45;color:white;border:0;border-radius:6px;">Criar conta</button>
+    <button id="ompEntrar" style="padding:12px;margin:5px;background:#173b68;color:white;border:0;border-radius:6px;">Iniciar sessão</button>
+    <button id="ompSair" style="padding:12px;margin:5px;background:#777;color:white;border:0;border-radius:6px;">Sair da conta</button>
+    <button id="ompGuardar" style="padding:12px;margin:5px;background:#b8860b;color:white;border:0;border-radius:6px;">Guardar perfil</button>
+    <p id="ompMensagem" role="status" style="overflow-wrap:anywhere;"></p>
+  `;
+
+  pagina.prepend(caixa);
+
+  const campo = id => document.getElementById(id);
+  const mensagem = texto => campo("ompMensagem").textContent = texto;
+
+  async function guardarPerfil() {
+    const { data: { user }, error: erroSessao } = await db.auth.getUser();
+
+    if (erroSessao || !user) {
+      mensagem("Primeiro, inicia sessão na tua conta.");
+      return;
+    }
+
+    const nome = campo("ompNome").value.trim();
+
+    if (!nome) {
+      mensagem("Escreve o teu nome completo.");
+      return;
+    }
+
+    const { error } = await db.from("perfis").upsert({
+      user_id: user.id,
+      email: user.email,
+      nome: nome
+    }, { onConflict: "user_id" });
+
+    if (error) {
+      mensagem("Não foi possível guardar: " + error.message);
+    } else {
+      mensagem("Perfil guardado com sucesso!");
+    }
+  }
+
+  campo("ompRegistar").addEventListener("click", async () => {
+    const nome = campo("ompNome").value.trim();
+    const email = campo("ompEmail").value.trim();
+    const password = campo("ompSenha").value;
+
+    if (!nome || !email || password.length < 6) {
+      mensagem("Preenche o nome, o correio electrónico e uma palavra-passe com pelo menos 6 caracteres.");
+      return;
+    }
+
+    mensagem("A criar a tua conta...");
+
+    const { data, error } = await db.auth.signUp({
+      email: email,
+      password: password,
+      options: {
+        data: { nome: nome },
+        emailRedirectTo: location.origin + location.pathname
+      }
+    });
+
+    if (error) {
+      mensagem("Erro no registo: " + error.message);
+      return;
+    }
+
+    if (data.session && data.user) {
+      await guardarPerfil();
+    } else {
+      mensagem("Conta criada! Verifica o teu correio electrónico para confirmar a conta antes de iniciares sessão.");
+    }
+  });
+
+  campo("ompEntrar").addEventListener("click", async () => {
+    const email = campo("ompEmail").value.trim();
+    const password = campo("ompSenha").value;
+
+    if (!email || !password) {
+      mensagem("Escreve o teu correio electrónico e a palavra-passe.");
+      return;
+    }
+
+    mensagem("A iniciar sessão...");
+
+    const { error } = await db.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      mensagem("Não foi possível entrar: " + error.message);
+      return;
+    }
+
+    mensagem("Sessão iniciada! Agora podes guardar o teu perfil.");
+  });
+
+  campo("ompGuardar").addEventListener("click", guardarPerfil);
+
+  campo("ompSair").addEventListener("click", async () => {
+    const { error } = await db.auth.signOut();
+    mensagem(error ? "Erro ao sair: " + error.message : "Saíste da tua conta.");
+  });
+
+  db.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      campo("ompEmail").value = data.session.user.email || "";
+      mensagem("Já tens uma sessão iniciada.");
+    }
+  });
+})();
+ </script>
 </body>
 </html>
